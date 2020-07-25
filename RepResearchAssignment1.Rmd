@@ -1,0 +1,81 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+## Loading and preprocessing the data
+```{r processing data,echo=TRUE}
+data<-read.csv('./activity/activity.csv')
+data$date<-factor(data$date)
+step_date<-tapply(data$steps,data$date,sum)
+
+```
+## What is mean total number of steps taken per day?
+```{r total_steps, echo=TRUE,warning=FALSE,message=FALSE}
+hist(step_date,breaks=40, 
+     main = "Histogram of total number of steps taken per day",
+     xlab = "Steps")
+step_mean<-format(round(mean(step_date,na.rm=TRUE)),scientific = F)
+step_median<-median(step_date,na.rm=TRUE)
+
+```
+The mean of total number of steps taken per day is `r step_mean`.
+The median of total number of steps taken per day is `r step_median`.
+
+
+## What is the average daily activity pattern?
+```{r average_daily_activity, echo=TRUE,warning=FALSE}
+data_active<-data[!is.na(data$steps),]
+data_ac_by_interval<-aggregate(data_active[,c(1,3)],by=list(int = data_active$interval),mean)
+with(data_ac_by_interval,
+     plot(interval,steps,type="l",
+          main ="A time series plot",
+          xlab = "the 5-minute interval",
+          ylab = "the average number of steps taken"))
+int_maximum<-data_ac_by_interval$interval[which.max(data_ac_by_interval$steps)]
+```
+The 5 minutes interval of `r int_maximum` contains the maximum number of steps!
+
+## Imputing missing values
+```{r missing_values, echo=TRUE,warning=FALSE}
+mv<-sum(is.na(data$steps))
+
+data_na<-data[is.na(data$steps),]
+mdata_na<-merge(data_na,data_ac_by_interval,by.x = 3,by.y = 3,all.y=FALSE)
+newdata_na<-mdata_na[c(5,3,4)]
+names(newdata_na)<-c("steps","date","interval")
+newdata<-rbind(data_active,newdata_na)
+newdata_date<-aggregate(newdata$steps,by=list(date_by = newdata$date),sum)
+names(newdata_date)<-c("date","steps")
+
+hist(newdata_date$steps,breaks=40, 
+     main = "Histogram of total number of steps taken per day",
+     xlab = "Steps")
+newstep_mean<-format(mean(newdata_date$steps),scientific =FALSE)
+newstep_median<-format(median(newdata_date$steps),scientific = FALSE)
+```
+1. the total number of missing values in the dataset is `r mv` !
+
+4.The mean of total number of steps taken per day is `r newstep_mean`.
+  The median of total number of steps taken per day is `r newstep_median`. 
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r difference_between_weekday_and_weekends, echo=TRUE,warning=FALSE}
+library(lattice)
+library(dplyr)
+newdata$weekdays<-weekdays(as.Date(newdata$date))
+newdata_weekend<-mutate(newdata,weekend = if_else(weekdays =="Sunday"|weekdays =="Saturday",
+                   "Weekend","Weekday"))
+nd_wd_int<-aggregate(newdata_weekend[,1],
+                     by=list(newdata_weekend$interval,newdata_weekend$weekend),
+                     mean)
+names(nd_wd_int)=c("interval","weekend","steps")
+xyplot(steps~interval|weekend, nd_wd_int,type="l",layout=c(1,2),
+       xlab = "the 5-minute interval",
+       ylab = "the average number of steps taken")
+
+```
+
